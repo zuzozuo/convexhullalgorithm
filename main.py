@@ -4,10 +4,10 @@ import math
 from PIL import Image, ImageDraw, ImageFont
 
 POINTS_NUMBER = 10 # how many points
-MAX_H_P = 300 # height of png file
-MAX_W_P = 300 # height of png file
-Y_OFFSET  = 10 # multiplying x coords for png file
-X_OFFSET = 10  # multiplying y coords for png file
+MAX_H_P = 1000 # height of png file
+MAX_W_P = 1000 # height of png file
+Y_OFFSET  = 20 # multiplying x coords for png file
+X_OFFSET = 20  # multiplying y coords for png file
 WHITE = (255,255,255)
 BLACK = (0, 0, 0)
 RED = (255, 0 , 0)
@@ -29,12 +29,12 @@ class Point:
 # n - how many points to generate
 class Generator:
     def __init__ (self, n: int):
-        self.points =  self.generate_fixed_points() # np.array(self.generate_points(n), dtype=object)
+        self.points = np.array(self.generate_points(n), dtype=object)  #self.generate_fixed_points() # 
         
     def generate_points(self, n: int):
         p = set()
         while (len(p) < n):
-            p.add(Point(random.randint(0,20), random.randint(0,20)))
+            p.add(Point(random.randint(3,23), random.randint(3,23)))
             
         return list(p)
     
@@ -122,11 +122,15 @@ class ComplexHull:
                 print(f"Throwing out: {self.h[-1].x} {self.h[-1].y}")
                 print(f"Distance p1-p2: {self.distance(self.h[-2], self.h[-1])}  Distance p1-p3: {self.distance(self.h[-2], self.p[x])}")
                 self.h = self.h[:-1]
-
             
             self.h = np.append(self.h, self.p[x])
+            
+        print("======")
         
-        while (self.h.size >= 2) and (self.check_orientation(self.h[-2], self.h[-1], self.h[0]) != 1):
+        while (self.h.size >= 2) and (self.check_orientation(self.h[-2], self.h[-1], self.h[0]) != 1):            
+            print(f"Checked triplet p1: {self.h[-2].x} {self.h[-2].y} p2: {self.h[-1].x} {self.h[-1].y} p3: {self.h[0].x} {self.h[0].y} ")
+            print(f"Throwing out: {self.h[-1].x} {self.h[-1].y}")
+            print(f"Distance p1-p2: {self.distance(self.h[-2], self.h[-1])}  Distance p1-p3: {self.distance(self.h[-2], self.h[0])}")
             self.h = self.h[:-1]
             
         
@@ -158,8 +162,10 @@ class Draw:
         draw = ImageDraw.Draw(self.image)
         
         for p in self.points:
-            draw.point((p.x * X_OFFSET, MAX_H_P - (p.y * Y_OFFSET)), p.color)
-            draw.text((p.x * X_OFFSET, MAX_H_P- ((p.y * Y_OFFSET) - 2)), f"( {p.x},  {p.y} )", fill=(0, 0, 0), size=3)
+            #draw.point((p.x * X_OFFSET, MAX_H_P - (p.y * Y_OFFSET)), p.color)
+            y1 = MAX_H_P - (p.y  * Y_OFFSET )
+            draw.ellipse((p.x * X_OFFSET - 1, y1 -1, p.x * X_OFFSET + 1, y1 + 1), outline= p.color)
+            draw.text((p.x * X_OFFSET, MAX_H_P- ((p.y * Y_OFFSET) - 5)), f"( {p.x},  {p.y} )", fill=(0, 0, 0), size=10)
         self.image.save("points.png")
         
         
