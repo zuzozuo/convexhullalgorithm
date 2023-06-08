@@ -1,46 +1,60 @@
+"""
+This code demonstrates the generation of random points, computation of the convex hull using the Graham's scan algorithm,
+and drawing the resulting points and convex hull on an image.
+"""
+
+from consts import *
 import numpy as np 
 import random
-import math
+import os
 from PIL import Image, ImageDraw, ImageFont
-
-POINTS_NUMBER = 5 # how many points
-MAX_H_P = 300 # height of png file
-MAX_W_P = 300 # height of png file
-Y_OFFSET  = 10 # multiplying x coords for png file
-X_OFFSET = 10  # multiplying y coords for png file
-WHITE = (255,255,255)
-BLACK = (0, 0, 0)
-RED = (255, 0 , 0)
-BLUE = (0, 0, 255)
-SHAPE_NAME = {
-            "1" : "POINT",
-            "2" : "LINE", 
-            "3" : "TRIANGLE",
-            "4" : "QUADRANGLE",
-            "5" : "OTHER POLY"
-            }
 
 # --------------------------------------------------------------------------------
 class Point:
     
-    global BLACK
-    def __init__(self, x: int, y: int):
+    """
+    Represents a point in 2D space.
+    
+    Args:
+            x (int): The x-coordinate of the point.
+            y (int): The y-coordinate of the point.
+            
+    """
+
+    def __init__(self, x: int, y: int):        
         self.x = x
         self.y = y
-        self.angle = 0 #  polar angle with P0
         self.color = BLACK
         
     def set_color(self, c: tuple) -> None:
         self.color = c
-        
-# --------------------------------------------------------------------------------------
-# n - how many points to generate
+
+# --------------------------------------------------------------------------------        
+
 class Generator:
-    def __init__ (self, n: int, v: list):
-        # self.points = self.generate_fixed_points(v) # np.array(self.generate_points(n), dtype=object)
+    
+    """
+    Generates a set of random points.
+    
+    Args:
+            n (int): The number of points to generate.
+    """
+
+    def __init__ (self, n: int):
         self.points = np.array(self.generate_points(n), dtype=object)
         
     def generate_points(self, n: int) -> np.array:
+        
+        """
+        Generates a random set of points.
+
+        Args:
+            n (int): The number of points to generate.
+
+        Returns:
+            np.array: An array of Point objects representing the generated points.
+        """
+        
         points = np.array([], dtype=object)
         p = set()
         while (len(p) < n):
@@ -50,47 +64,97 @@ class Generator:
             points = np.append(points, Point(c[0], c[1]))
             
         return points
-    
-    def generate_fixed_points(self, coords) -> np.array:
-        return np.array([Point(x[0], x[1]) for x in coords], dtype=object)
+
+    def set_fixed_points(self, coords: list) -> None:
         
-    
-    def get_points(self) -> np.ndarray: return self.points
+        """
+        Sets the points to a fixed set of coordinates.
+
+        Args:
+            coords (list): A list of tuples representing the x and y coordinates of the points.
+        """
+        
+        self.points = np.array([Point(x[0], x[1]) for x in coords], dtype=object)
+        
+    def get_points(self) -> np.array: return self.points
     
     def print_points(self) -> None:        
         for p in self.points:
             print(str(p.x) + " " + str(p.y))
             
-
+# --------------------------------------------------------------------------------
 class ComplexHull:
+    
+    """
+    Computes the convex hull of a set of points using Graham's scan algorithm.
+    """
+    
     def __init__(self, p: np.array):
         self.p = p # list of points
-        self.h = np.array([], dtype=object) # list with solution        
+        self.h = self.graham() # list with solution        
     
     def distance(self, p1: Point, p2: Point) -> float:
+        
+        """
+        Computes the Euclidean distance between two points.
+
+        Args:
+            p1 (Point): The first point.
+            p2 (Point): The second point.
+
+        Returns:
+            float: The distance between the two points.
+        """
+        
         return np.linalg.norm( np.array([p2.x, p2.y]) - np.array([p1.x, p1.y]) )
     
-    def angle(self, p1: Point, p2: Point) -> np.ndarray:
+    def angle(self, p1: Point, p2: Point) -> np.array:
+        
+        """
+        Computes the angle between two points.
+
+        Args:
+            p1 (Point): The first point.
+            p2 (Point): The second point.
+
+        Returns:
+            np.array: The angle between the two points.
+        """
+        
         return np.arctan2((p2.x - p1.x), (p2.y - p1.y))
     
     
-    def check_shape(self, p: np.ndarray) -> int:
+    def check_shape(self, p: np.array) -> int:
+        
+        """
+        Determines the shape of the convex hull based on the number of points.
+
+        Args:
+            p (np.array): An array of Point objects representing the convex hull points.
+
+        Returns:
+            int: The shape of the convex hull.
+        """
+        
         if(p.size < 5):
             return SHAPE_NAME[str(p.size)]
         else:        
             return SHAPE_NAME["5"]
-    
-    def check_if_line(self, p: np.ndarray) ->  bool:
-        res = []
-        for x in range(2, p.size):
-            res.append(self.check_orientation(p[x-2], p[x-1], p[x]))
-        
-        if((len(set(res)) == 1) and  (0 in set(res))):
-            return True
-        
-        return False
             
     def check_orientation(self, p1: Point, p2: Point, p3: Point) -> int:
+        
+        """
+        Checks the orientation of three points (clockwise, counterclockwise, or colinear).
+
+        Args:
+            p1 (Point): The first point.
+            p2 (Point): The second point.
+            p3 (Point): The third point.
+
+        Returns:
+            int: The orientation of the points.
+        """
+        
         
         o = (p3.y - p2.y) * (p2.x - p1.x) - (p2.y - p1.y) * (p3.x - p2.x)
         
@@ -98,17 +162,30 @@ class ComplexHull:
             return -1 # clockwise
         elif (o < 0): 
             return 1 # counterclockwise
-        else:  #colilinear
-            # print(f"Colinear!! ({p1.x} {p1.y}), ({p2.x} {p2.y}), ({p3.x} {p3.y})")
+        else:  
             if self.distance(p1, p2) < self.distance(p3,p1):
-                return 0
+                return 0 # colinear, closer to p2
             else:
-                return 1
-            # return 0 
-
+                return 1 # colinear, closer to p3
     
     def graham(self) -> np.array:
-        # find the lowest y-coord and leftmost point, P0 
+        
+        """
+        Computes the convex hull using Graham's scan algorithm.
+
+        Returns:
+            np.array: An array of Point objects representing the convex hull points.
+        """
+        
+        hull = np.array([], dtype=object)
+        
+        if (self.p.size < 3 ):
+            hull = self.p
+            for h in hull: 
+                h.color = RED
+            return hull
+        
+        
         i_min = 0 # minimum index, will be needed for swapping
         y_min = self.p[0].y # starting y coord of first point in array
         x_min = self.p[0].x # starting x coord of first point in array
@@ -120,125 +197,86 @@ class ComplexHull:
                 x_min = self.p[x].x
                 i_min = x
                 
-        
-        p0 = self.p[i_min] #save p0
-        # print(f"p0: {p0.x}, {p0.y}")
-        self.p = np.delete(self.p, i_min) #delete p0 from array temp
+        p0 = self.p[i_min] # save p0
+
+        self.p = np.delete(self.p, i_min) # delete p0 from array temp
         
         # sort depending on angle and distance 
         self.p = np.array(sorted(self.p, key=lambda p: (self.angle(p0,p), self.distance(p0, p))), dtype=object)
-        # self.p = np.array(sorted(self.p, key=lambda p: (self.angle(p0,p))), dtype=object)
         
         #add p0 at the beggining of the array
         self.p = np.insert(self.p, 0, p0)
         
         # scan begin
-        self.h = self.p[0:2]
+        hull = self.p[0:2]
         
         for x in range(2, self.p.size):
             
-            while  (self.h.size >=2) and (self.check_orientation(self.h[-2], self.h[-1], self.p[x]) != 1):
-                self.h = self.h[:-1]
+            while  (hull.size >=2) and (self.check_orientation(hull[-2], hull[-1], self.p[x]) != 1):
+                hull = hull[:-1]
             
-            self.h = np.append(self.h, self.p[x])
+            hull = np.append(hull, self.p[x])
                     
-        # przypadek zdegenerowany
-        while (self.h.size >= 2) and (self.check_orientation(self.h[-2], self.h[-1], self.h[0]) != 1):            
-            self.h = self.h[:-1]
+        # additional check at the end in case of colinearrity
+        while (hull.size >= 2) and (self.check_orientation(hull[-2], hull[-1], hull[0]) != 1):            
+            hull = hull[:-1]
             
         
-        for h in self.h:
+        for h in hull:
             h.color = RED
-        # self.print_hull()
-        
-        print(self.check_shape(self.h))
-        return self.h
-        
-# ------------- prints
+            
+        return hull
+
     def print_results(self) -> None:
-        pass
+        
+        print("Input points: ")
+        self.print_coords(self.p)
+        
+        print("Hull: ")
+        self.print_coords(self.h)
+        
+        print(f"Shape of the hull: {self.check_shape(self.h)}")
         
     
-    def print_points(self) -> None:
-        for p in self.p:
-            print(str(p.x) + " " + str(p.y))
+    def print_coords(self, coords: np.array) -> None:
+            print(', '.join(f"({p.x}, {p.y})" for p in coords))
     
-    def print_hull(self) -> None:
-        for h in self.h:
-            print(str(h.x) + " " + str(h.y) +  " " + str(h.color))
-                    
 # ------------------------------------------------------------------------        
 class Draw:
-    global MAX_H_P, MAX_W_P, BLACK, WHITE, RED
+    
+    """
+    Draws the points and convex hull on an image.
+    """
     
     def __init__(self, points: np.array):
         self.points = points
-        self.dot_size = 2
         self.image  = Image.new("RGB", (MAX_H_P, MAX_W_P), WHITE)
+        
+        if not os.path.exists(IMG_DIR):
+            os.makedirs(IMG_DIR)
         
     def draw_image(self) -> None:
         draw = ImageDraw.Draw(self.image)
-        font = ImageFont.truetype('tahoma.ttf', 7)
+        font = ImageFont.truetype(FONT_NAME, FONT_SIZE)
         draw.font = font
 
         # draw dots
-        
         for p in self.points:
-            y1 = MAX_H_P - (p.y  * Y_OFFSET )
-            draw.ellipse((p.x * X_OFFSET - 1, y1 -1, p.x * X_OFFSET + 1, y1 + 1), outline= p.color)
-            draw.text((p.x * X_OFFSET, MAX_H_P- ((p.y * Y_OFFSET) - 5)), f"( {p.x},  {p.y} )", fill=(0, 0, 0))
-        self.image.save(f"points{random.randint(100,456)}.png")
+            x = p.x * X_OFFSET
+            y = MAX_H_P - (p.y  * Y_OFFSET )
+            draw.ellipse((x - DOT_SIZE, y -DOT_SIZE, x + DOT_SIZE, y + DOT_SIZE), outline= p.color)
+            draw.text((x + DOT_SIZE * 2, y - DOT_SIZE * 2), f"( {p.x},  {p.y} )", fill=(0, 0, 0))
+        self.image.save(f"{IMG_DIR}/points{random.randint(100,456)}.png")
         
         
-        
+# --------------------------------------------------------------------------------       
 if __name__ == "__main__":
     
+    g = Generator(POINTS_NUMBER)
     
-    test_sets = {
-        
-        "triagle_1" : [(2,1), (6,1), (3.5,4)],
-        "triagle_2" : [(2,2), (10,2), (13,10)],
-        "line_vertical" : [(1,1) , (1,2), (1, 9), (1,13)] ,
-        "line_horizontal" : [(1, 6), (3, 6), (8, 6), (12, 6) ],
-        "quadrangle": [(1,4), (8,4), (12, 9), (6,8)] ,
-        "square" : [(4,5), (4,1), (8, 1), (8,5)] ,
-        "random1": [(6, 20), (9, 16), (12, 4), (17, 1), (23, 7), (25, 9), (21, 18), (15, 23), (3, 24), (2, 10)],
-        "random2" : [
-                    (20, 20), (14, 13), (19, 18), (11, 14), (24, 8), (15, 5), (26, 5), (11, 23), (10, 27), (18, 19),
-                    (3, 6), (13, 19), (6, 13), (16, 15), (14, 8), (8, 4), (22, 21), (3, 26), (9, 21), (13, 12),
-                    (26, 9), (25, 11), (7, 5), (21, 4), (18, 23), (22, 5), (3, 10), (9, 5), (4, 27), (10, 15),
-                    (16, 10), (8, 27), (25, 22), (3, 3), (3, 12), (18, 9), (21, 20), (12, 17), (15, 12), (27, 17),
-                    (24, 9), (16, 23), (6, 15), (20, 14), (21, 13), (23, 10), (12, 19), (17, 18), (8, 15), (24, 11),
-                    (12, 3), (6, 26), (27, 12), (27, 21), (13, 4), (19, 17), (22, 6), (26, 22), (12, 14), (14, 11),
-                    (18, 27), (12, 23), (27, 14), (19, 10), (11, 15), (11, 24), (4, 12), (4, 21), (19, 3), (19, 12),
-                    (25, 7), (11, 17), (15, 8), (18, 13), (15, 26), (14, 6), (21, 21), (17, 8), (22, 22), (8, 14),
-                    (27, 27), (11, 19), (13, 13), (20, 6), (13, 22), (26, 19), (12, 11), (4, 7), (4, 16), (27, 11),
-                    (5, 8), (8, 7), (11, 3), (11, 12), (19, 25), (13, 6), (24, 15), (26, 12), (7, 8), (21, 7)
-                    ],
-        
-        "random3": [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6), (7, 7), (8, 8), (9, 9), (10, 10), 
-                    (11, 11), (12, 12), (13, 13), (14, 14), (15, 15), (16, 16), (17, 17), (18, 18), (19, 19), 
-                    (20, 20), (21, 21), (22, 22), (23, 23), (24, 24), (25, 25), (26, 26), (27, 27), (28, 28), 
-                    (29, 29), (30, 30), (31, 31), (32, 32), (33, 33), (34, 34), (35, 35), (36, 36), (37, 37), 
-                    (38, 38), (39, 39), (40, 40), (41, 41), 
-                    (42, 42), (43, 43), (44, 44), (45, 45), (46, 46), (47, 47), (48, 48), (49, 49), (50, 50)],
-        "square_with_dots" : [(4,5), (4,1), (8, 1), (8,5), (5,2), (6,4) ],  
-        "dot": [(3,3)]
+    h = ComplexHull(g.get_points())
+    h.print_results()
 
-    }
-    
-    
-    for k,v in test_sets.items():        
-        print(f"-----------------{k}-------------------------")
-        g = Generator(POINTS_NUMBER, v)
+    d = Draw(g.get_points())
+    d.draw_image()
         
-        h = ComplexHull(g.get_points())
-        h.graham()
-        #print(h.check_shape(h.graham()))
-        
-        
-        d = Draw(g.get_points())
-        d.draw_image()
-        print("------------------------------------------")
-    
-
